@@ -8,14 +8,29 @@ if ($_SESSION['role'] != 'admin') {
     exit();
 }
 
-// Handle form submission for creating announcements
+// Handle form submission for creating announcements with image upload
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $title = $_POST['title'];
     $content = $_POST['content'];
+    $image = null;
+
+    // Image upload handling
+    if (!empty($_FILES['image']['name'])) {
+        $image_name = basename($_FILES['image']['name']);
+        $image_tmp = $_FILES['image']['tmp_name'];
+        $upload_dir = 'uploads/';
+        $image_path = $upload_dir . $image_name;
+
+        // Move the uploaded image to the uploads directory
+        if (move_uploaded_file($image_tmp, $image_path)) {
+            $image = $image_path;
+        }
+    }
 
     if ($title && $content) {
-        $stmt = $conn->prepare("INSERT INTO announcements (title, content) VALUES (?, ?)");
-        $stmt->bind_param("ss", $title, $content);
+        // Insert the announcement with image path into the database
+        $stmt = $conn->prepare("INSERT INTO announcements (title, content, image) VALUES (?, ?, ?)");
+        $stmt->bind_param("sss", $title, $content, $image);
         $stmt->execute();
         $stmt->close();
         $_SESSION['message'] = "Announcement created successfully!";
@@ -34,10 +49,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 if (isset($_GET['delete_id'])) {
     $id = $_GET['delete_id'];
 
+    // Fetch the announcement to delete the image
+    $stmt = $conn->prepare("SELECT image FROM announcements WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $stmt->bind_result($image);
+    $stmt->fetch();
+    $stmt->close();
+
+    // Delete the announcement
     $stmt = $conn->prepare("DELETE FROM announcements WHERE id = ?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
     $stmt->close();
+
+    // Delete the image file if it exists
+    if ($image && file_exists($image)) {
+        unlink($image);
+    }
 
     $_SESSION['message'] = "Announcement deleted successfully!";
     $_SESSION['message_type'] = "success";
@@ -75,7 +104,6 @@ $result = $conn->query("SELECT * FROM announcements ORDER BY created_at DESC");
                         <?php echo isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : 'Admin'; ?>
                     </a>
                     <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdown">
-                        <!-- <a class="dropdown-item" href="profile.php">Profile</a> -->
                         <a class="dropdown-item" href="logout.php">Logout</a>
                     </div>
                 </li>
@@ -86,7 +114,7 @@ $result = $conn->query("SELECT * FROM announcements ORDER BY created_at DESC");
     <div class="container mt-5">
         <div class="card p-4 shadow-lg">
             <h2 class="text-center mb-4">Create Announcement</h2>
-            <form method="POST">
+            <form method="POST" enctype="multipart/form-data">
                 <div class="form-group">
                     <label for="title">Title</label>
                     <input type="text" class="form-control" name="title" required>
@@ -94,6 +122,10 @@ $result = $conn->query("SELECT * FROM announcements ORDER BY created_at DESC");
                 <div class="form-group">
                     <label for="content">Content</label>
                     <textarea class="form-control" name="content" rows="5" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="image">Upload Image</label>
+                    <input type="file" class="form-control" name="image" accept="image/*">
                 </div>
                 <button type="submit" class="btn btn-primary btn-block">Create Announcement</button>
             </form>
@@ -104,6 +136,9 @@ $result = $conn->query("SELECT * FROM announcements ORDER BY created_at DESC");
             <?php while ($row = $result->fetch_assoc()): ?>
                 <div class="card mt-3 shadow-sm">
                     <div class="card-body">
+                        <?php if (!empty($row['image'])): ?>
+                            <img src="<?php echo htmlspecialchars($row['image']); ?>" alt="Announcement Image" class="img-fluid mb-3" style="max-height: 300px;">
+                        <?php endif; ?>
                         <h5 class="card-title"><?php echo htmlspecialchars($row['title']); ?></h5>
                         <p class="card-text"><?php echo nl2br(htmlspecialchars($row['content'])); ?></p>
                         <small class="text-muted">Posted on: <?php echo $row['created_at']; ?></small>

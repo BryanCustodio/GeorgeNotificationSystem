@@ -27,7 +27,7 @@ $result = $conn->query("SELECT * FROM announcements ORDER BY created_at DESC");
 
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="admin.php">
+        <a class="navbar-brand" href="student.php">
             <img src="asiatech.png" alt="" style="width: 40px; height: 40px;">
             Asiatechnological
         </a>
@@ -38,7 +38,6 @@ $result = $conn->query("SELECT * FROM announcements ORDER BY created_at DESC");
                         <?php echo isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : 'Student'; ?>
                     </a>
                     <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdown">
-                        <!-- <a class="dropdown-item" href="profile.php">Profile</a> -->
                         <a class="dropdown-item" href="logout.php">Logout</a>
                     </div>
                 </li>
@@ -51,6 +50,10 @@ $result = $conn->query("SELECT * FROM announcements ORDER BY created_at DESC");
         <?php while ($row = $result->fetch_assoc()): ?>
             <div class="card mt-3 shadow-sm">
                 <div class="card-body">
+                    <!-- Display image if it exists -->
+                    <?php if (!empty($row['image'])): ?>
+                        <img src="<?php echo htmlspecialchars($row['image']); ?>" alt="Announcement Image" class="img-fluid mb-3" style="max-height: 300px;">
+                    <?php endif; ?>
                     <h5 class="card-title"><?php echo htmlspecialchars($row['title']); ?></h5>
                     <p class="card-text"><?php echo nl2br(htmlspecialchars($row['content'])); ?></p>
                     <small class="text-muted">Posted on: <?php echo $row['created_at']; ?></small>
